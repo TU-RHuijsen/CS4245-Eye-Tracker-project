@@ -2,24 +2,26 @@ from keras.layers import Input, Conv2D, Dense, Flatten, MaxPool2D, concatenate
 from tensorflow.keras import mixed_precision
 from keras.models import Model
 from keras.optimizers import SGD
-from keras.callbacks import EarlyStopping, ModelCheckpoint
+from keras.callbacks import ModelCheckpoint
 import keras.backend as K
 import tensorflow as tf
 import numpy as np
 import cv2
 import os
+import time
 from matplotlib import pyplot as plt
 
 # Define input and output directories.
 project_dir = './'
-input_dir = project_dir + 'grid/'
+input_dir = project_dir + 'images/'
+test_dir = project_dir + 'testing/'
 model_dir = project_dir + 'model/'
-# Retrieve width and height of the monitor.
+# Retrieve pixel width and height of the monitor.
 width = 1920
 height = 1080
 #...
-screen_width_cm = 38.96 #cm
-screen_width_cm = 29.0 #cm
+screen_width_cm = 38.3 #cm
+screen_height_cm = 21.5 #cm
 
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 mixed_precision.set_global_policy('float32')
@@ -28,7 +30,19 @@ mixed_precision.set_global_policy('float32')
 activation = 'relu'
 last_activation = 'linear'
 
-def euclidean_loss(y_true, y_pred):
+def euclidean_distance_truncated(y_true, y_pred):
+    return K.sqrt(K.sum(K.square(y_pred - y_true), axis=-1))
+
+def euclidean_distance_pixels(y_true_scaled, y_pred_scaled):
+    pixel_scaler = tf.constant([width, height], dtype=tf.float32)
+    y_true = y_true_scaled*pixel_scaler
+    y_pred = y_pred_scaled*pixel_scaler
+    return K.sqrt(K.sum(K.square(y_pred - y_true), axis=-1))
+
+def euclidean_distance_cm(y_true_scaled, y_pred_scaled):
+    cm_scaler = tf.constant([screen_width_cm, screen_height_cm], dtype=tf.float32)
+    y_true = y_true_scaled*cm_scaler
+    y_pred = y_pred_scaled*cm_scaler
     return K.sqrt(K.sum(K.square(y_pred - y_true), axis=-1))
 
 def get_eye_model(img_ch, img_cols, img_rows):
@@ -167,21 +181,36 @@ model.summary()
 # optimizer
 sgd = SGD(learning_rate=1e-3, decay=5e-4, momentum=9e-1, nesterov=True)
 # compile model
-model.compile(optimizer=sgd, loss=euclidean_loss)
+model.compile(optimizer=sgd, loss=euclidean_distance_truncated, metrics=[euclidean_distance_cm])
 
-# Might be handy to use earlyStopping to combat overfitting.
-earlyStopping = EarlyStopping(monitor='loss', patience=500, verbose=0, mode='min')
 # Only save the model with the best loss on the validation set.
-mcp_save = ModelCheckpoint('.mdl_wts.hdf5', save_best_only=False, monitor='val_loss', mode='min')
+model_name = ".model_" + time.strftime("%Y%m%d-%H%M%S") + ".hdf5"
+mcp_save = ModelCheckpoint(model_name, save_best_only=True, monitor='val_loss', mode='min')
 
 # Fit the model to the data
-history = model.fit([X_right_eye, X_left_eye, X_face, X_grid], y, validation_split = 0.25, batch_size=64, epochs=100, callbacks=[earlyStopping, mcp_save])
+history = model.fit([X_right_eye, X_left_eye, X_face, X_grid], y, validation_split = 0.25, batch_size=64, epochs=200, callbacks=[mcp_save])
 
 # Create a plot for the loss and validation loss.
 plt.plot(history.history['loss'])
 plt.plot(history.history['val_loss'])
-plt.title('Euclidean distance loss - X person(s)')
+plt.title('Euclidean distance loss - 11 person(s)')
 plt.ylabel('loss')
 plt.xlabel('epoch')
 plt.legend(['train', 'val'], loc='upper left')
 plt.show()
+
+min_loss = min(history.history['val_loss'])
+print("\nMinimum validation loss: ", min_loss)
+epoch = history.history['val_loss'].index(min_loss)
+print("Minimum validation loss @ epoch: ", epoch)
+print("Corresponding validation cm difference: ", history.history['val_euclidean_distance_cm'][epoch])
+
+print("\nCorresponding training loss: ", history.history['loss'][epoch])
+print("Corresponding training cm difference: ", history.history['euclidean_distance_cm'][epoch])
+
+# X_face_test, X_grid_test, X_left_eye_test, X_right_eye_test, y_test = get_dataset(input_dir)
+# predictions = model.predict([X_right_eye_test, X_left_eye_test, X_face_test, X_grid_test])
+# y_test_cm = y_test.copy()
+# y_test_cm[:, 0] = y_test_cm[:, 0]*screen_width_cm
+# y_test_cm[:, 1] = y_test_cm[:, 1]*screen_height_cm
+# average_cm_diff = euclidean_distance_cm(y_test, predictions)
