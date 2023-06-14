@@ -13,7 +13,7 @@ from matplotlib import pyplot as plt
 
 # Define input and output directories.
 project_dir = './'
-input_dir = project_dir + 'images/'
+input_dir = project_dir + 'add_more_persons_here/'
 test_dir = project_dir + 'testing/'
 model_dir = project_dir + 'model/'
 # Retrieve pixel width and height of the monitor.
@@ -193,7 +193,7 @@ history = model.fit([X_right_eye, X_left_eye, X_face, X_grid], y, validation_spl
 # Create a plot for the loss and validation loss.
 plt.plot(history.history['loss'])
 plt.plot(history.history['val_loss'])
-plt.title('Euclidean distance loss - 11 person(s)')
+plt.title('Euclidean distance loss - X person(s)')
 plt.ylabel('loss')
 plt.xlabel('epoch')
 plt.legend(['train', 'val'], loc='upper left')
@@ -201,12 +201,13 @@ plt.show()
 
 min_loss = min(history.history['val_loss'])
 print("\nMinimum validation loss: ", min_loss)
-epoch = history.history['val_loss'].index(min_loss)
+epoch_idx = history.history['val_loss'].index(min_loss)
+epoch = epoch_idx + 1
 print("Minimum validation loss @ epoch: ", epoch)
-print("Corresponding validation cm difference: ", history.history['val_euclidean_distance_cm'][epoch])
+print("Corresponding validation cm difference: ", history.history['val_euclidean_distance_cm'][epoch_idx])
 
-print("\nCorresponding training loss: ", history.history['loss'][epoch])
-print("Corresponding training cm difference: ", history.history['euclidean_distance_cm'][epoch])
+print("\nCorresponding training loss: ", history.history['loss'][epoch_idx])
+print("Final training loss: ", history.history['loss'][-1])
 
 # X_face_test, X_grid_test, X_left_eye_test, X_right_eye_test, y_test = get_dataset(input_dir)
 # predictions = model.predict([X_right_eye_test, X_left_eye_test, X_face_test, X_grid_test])
