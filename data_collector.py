@@ -16,6 +16,9 @@ color = "static" #Use "static" or "random"
 # Define resolution of webcam.
 webcam_width = 1280
 webcam_height = 720
+#...
+screen_width_mm = 389.6 #mm
+screen_width_mm = 290 #mm
 # Set the crop size of the eye image, note that this is dependand on your webcam resolution!
 eye_box_shape = 50
 

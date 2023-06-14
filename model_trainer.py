@@ -1,7 +1,7 @@
 from keras.layers import Input, Conv2D, Dense, Flatten, MaxPool2D, concatenate
 from tensorflow.keras import mixed_precision
 from keras.models import Model
-from keras.optimizers import SGD, Adam
+from keras.optimizers import SGD
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 import keras.backend as K
 import tensorflow as tf
@@ -9,15 +9,17 @@ import numpy as np
 import cv2
 import os
 from matplotlib import pyplot as plt
-from screeninfo import get_monitors
 
 # Define input and output directories.
 project_dir = './'
 input_dir = project_dir + 'grid/'
 model_dir = project_dir + 'model/'
 # Retrieve width and height of the monitor.
-width = get_monitors()[0].width
-height = get_monitors()[0].height
+width = 1920
+height = 1080
+#...
+screen_width_cm = 38.96 #cm
+screen_width_cm = 29.0 #cm
 
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 mixed_precision.set_global_policy('float32')
@@ -26,7 +28,7 @@ mixed_precision.set_global_policy('float32')
 activation = 'relu'
 last_activation = 'linear'
 
-def euclidean_distance_loss(y_true, y_pred):
+def euclidean_loss(y_true, y_pred):
     return K.sqrt(K.sum(K.square(y_pred - y_true), axis=-1))
 
 def get_eye_model(img_ch, img_cols, img_rows):
@@ -165,7 +167,7 @@ model.summary()
 # optimizer
 sgd = SGD(learning_rate=1e-3, decay=5e-4, momentum=9e-1, nesterov=True)
 # compile model
-model.compile(optimizer=sgd, loss=euclidean_distance_loss)
+model.compile(optimizer=sgd, loss=euclidean_loss)
 
 # Might be handy to use earlyStopping to combat overfitting.
 earlyStopping = EarlyStopping(monitor='loss', patience=500, verbose=0, mode='min')
@@ -173,7 +175,7 @@ earlyStopping = EarlyStopping(monitor='loss', patience=500, verbose=0, mode='min
 mcp_save = ModelCheckpoint('.mdl_wts.hdf5', save_best_only=False, monitor='val_loss', mode='min')
 
 # Fit the model to the data
-history = model.fit([X_right_eye, X_left_eye, X_face, X_grid], y, validation_split = 0.25, batch_size=32, epochs=500, callbacks=[earlyStopping, mcp_save])
+history = model.fit([X_right_eye, X_left_eye, X_face, X_grid], y, validation_split = 0.25, batch_size=64, epochs=100, callbacks=[earlyStopping, mcp_save])
 
 # Create a plot for the loss and validation loss.
 plt.plot(history.history['loss'])
