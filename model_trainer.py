@@ -13,8 +13,8 @@ from matplotlib import pyplot as plt
 
 # Define input and output directories.
 project_dir = './'
-input_dir = project_dir + 'add_more_persons_here/'
-test_dir = project_dir + 'testing/'
+input_dir = project_dir + 'visual_test_train/'
+test_dir = project_dir + 'visual_test_test/'
 model_dir = project_dir + 'model/'
 # Retrieve pixel width and height of the monitor.
 width = 1920
@@ -129,6 +129,7 @@ def get_eye_tracker_model(img_ch, img_cols, img_rows):
 def get_dataset(input_dir):
     # Retrieve all the folders in the input directory
     train_ids = [name for name in os.listdir(input_dir) if os.path.isdir(input_dir + name)]
+    print(str(len(train_ids)) + " images in folder!")
     
     X_face = []
     X_grid = []
@@ -185,33 +186,56 @@ model.compile(optimizer=sgd, loss=euclidean_distance_truncated, metrics=[euclide
 
 # Only save the model with the best loss on the validation set.
 model_name = ".model_" + time.strftime("%Y%m%d-%H%M%S") + ".hdf5"
-mcp_save = ModelCheckpoint(model_name, save_best_only=True, monitor='val_loss', mode='min')
+mcp_save = ModelCheckpoint(model_name, save_best_only=True, monitor='loss', mode='min')
 
 # Fit the model to the data
-history = model.fit([X_right_eye, X_left_eye, X_face, X_grid], y, validation_split = 0.25, batch_size=64, epochs=200, callbacks=[mcp_save])
+history = model.fit([X_right_eye, X_left_eye, X_face, X_grid], y, validation_split = 0, batch_size=64, epochs=200, callbacks=[mcp_save])
 
 # Create a plot for the loss and validation loss.
 plt.plot(history.history['loss'])
-plt.plot(history.history['val_loss'])
-plt.title('Euclidean distance loss - X person(s)')
+#plt.plot(history.history['val_loss'])
+plt.title('Euclidean distance loss - 1 person(s)')
 plt.ylabel('loss')
 plt.xlabel('epoch')
 plt.legend(['train', 'val'], loc='upper left')
 plt.show()
 
-min_loss = min(history.history['val_loss'])
+# min_loss = min(history.history['val_loss'])
+# print("\nMinimum validation loss: ", min_loss)
+# epoch_idx = history.history['val_loss'].index(min_loss)
+# epoch = epoch_idx + 1
+# print("Minimum validation loss @ epoch: ", epoch)
+# print("Corresponding validation cm difference: ", history.history['val_euclidean_distance_cm'][epoch_idx])
+
+# print("\nCorresponding training loss: ", history.history['loss'][epoch_idx])
+# print("Final training loss: ", history.history['loss'][-1])
+
+min_loss = min(history.history['loss'])
 print("\nMinimum validation loss: ", min_loss)
-epoch_idx = history.history['val_loss'].index(min_loss)
+epoch_idx = history.history['loss'].index(min_loss)
 epoch = epoch_idx + 1
 print("Minimum validation loss @ epoch: ", epoch)
-print("Corresponding validation cm difference: ", history.history['val_euclidean_distance_cm'][epoch_idx])
+# print("Corresponding validation cm difference: ", history.history['val_euclidean_distance_cm'][epoch_idx])
 
-print("\nCorresponding training loss: ", history.history['loss'][epoch_idx])
+# print("\nCorresponding training loss: ", history.history['loss'][epoch_idx])
 print("Final training loss: ", history.history['loss'][-1])
 
-# X_face_test, X_grid_test, X_left_eye_test, X_right_eye_test, y_test = get_dataset(input_dir)
-# predictions = model.predict([X_right_eye_test, X_left_eye_test, X_face_test, X_grid_test])
-# y_test_cm = y_test.copy()
-# y_test_cm[:, 0] = y_test_cm[:, 0]*screen_width_cm
-# y_test_cm[:, 1] = y_test_cm[:, 1]*screen_height_cm
-# average_cm_diff = euclidean_distance_cm(y_test, predictions)
+X_face_test_1, X_grid_test_1, X_left_eye_test_1, X_right_eye_test_1, y_test_1 = get_dataset(input_dir)
+predictions_1 = model.predict([X_right_eye_test_1, X_left_eye_test_1, X_face_test_1, X_grid_test_1])
+
+y_test_cm_1 = y_test_1.copy()
+y_test_cm_1[:, 0] = y_test_cm_1[:, 0]*screen_width_cm
+y_test_cm_1[:, 1] = y_test_cm_1[:, 1]*screen_height_cm
+cm_diffs_1 = euclidean_distance_cm(y_test_1, predictions_1)
+average_cm_diff_1 = K.mean(cm_diffs_1)
+print("Average cm loss on the input images: ", average_cm_diff_1)
+
+X_face_test_2, X_grid_test_2, X_left_eye_test_2, X_right_eye_test_2, y_test_2 = get_dataset(test_dir)
+predictions_2 = model.predict([X_right_eye_test_2, X_left_eye_test_2, X_face_test_2, X_grid_test_2])
+
+y_test_cm_2 = y_test_2.copy()
+y_test_cm_2[:, 0] = y_test_cm_2[:, 0]*screen_width_cm
+y_test_cm_2[:, 1] = y_test_cm_2[:, 1]*screen_height_cm
+cm_diffs_2 = euclidean_distance_cm(y_test_2, predictions_2)
+average_cm_diff_2 = K.mean(cm_diffs_2)
+print("Average cm loss on the test images: ", average_cm_diff_2)
